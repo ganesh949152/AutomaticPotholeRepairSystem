@@ -11,11 +11,11 @@
 #include <ArduinoJson.h>       // For sending JSON responses from ESP32 web server
 
 // --- WiFi Credentials ---
-const char* ssid = "Unknown";
-const char* password = "@@##$$__";
+const char* ssid = "WIFI_SSID";
+const char* password = "WIFI_PASSWD";
 
 // --- Python Anywhere Hostname and Endpoints ---
-const char* serverName = "ganeshganji.pythonanywhere.com";
+const char* serverName = "yourpythonanywhereusername.pythonanywhere.com";
 const String dataEndpoint = "/receive_data";
 const String statusEndpoint = "/update_status";
 

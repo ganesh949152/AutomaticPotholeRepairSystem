@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Automatic Pothole Repair System Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body {
+            font-family: sans-serif;
+            margin: 20px;
+            color: #333;
+            background-color: #f9f9f9;
+        }
+
+        .container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+        }
+
+        .card {
+            background-color: white;
+            border: 1px solid #ddd;
+            padding: 15px;
+            width: calc(50% - 20px);
+            box-sizing: border-box;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+        }
+
+        .card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        .card h2 {
+            margin-top: 0;
+            color: #4CAF50;
+        }
+
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .data-table th,
+        .data-table td {
+            border: 1px solid #ddd;
+            padding: 12px;
+            text-align: left;
+        }
+
+        .data-table th {
+            background-color: #f4f4f4;
+            color: #333;
+        }
+
+        .data-table tbody tr:nth-child(odd) {
+            background-color: #f9f9f9;
+        }
+
+        .data-table tbody tr:hover {
+            background-color: #f0f0f0;
+        }
+
+        canvas {
+            max-width: 100%;
+            height: auto;
+        }
+
+        #gpsLog {
+            width: 100%;
+            height: 150px;
+            border: 1px solid #ddd;
+            margin-top: 20px;
+            padding: 10px;
+            overflow-y: scroll;
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            font-family: monospace;
+            font-size: 12px;
+            line-height: 1.5;
+        }
+
+        #gpsLog p {
+            margin: 5px 0;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                flex-direction: column;
+            }
+
+            .card {
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Automatic Pothole Repair System Dashboard</h1>
+
+        <div class="card">
+            <h2>Total Potholes Fixed</h2>
+            <p style="font-size: 24px; color: #007BFF;">{{ pothole_counts }}</p>
+        </div>
+        <div class="card">
+            <h2>Total Distance Traveled</h2>
+            <p style="font-size: 24px; color: #007BFF;">{{ "%.2f"|format(total_distance) }} cm</p>
+        </div>
+
+        <div class="card">
+            <h2>Pothole Volume Trend</h2>
+            <canvas id="volumeChart"></canvas>
+        </div>
+
+        <div class="card">
+            <h2>Materials Used (Pie Chart)</h2>
+            <canvas id="materialsChart"></canvas>
+        </div>
+    </div>
+
+    <h2>Recent Repairs</h2>
+    {% if records %}
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th>Timestamp</th>
+                <th>Latitude</th>
+                <th>Longitude</th>
+                <th>Volume (cm³)</th>
+                <th>Cement Used (units)</th>
+                <th>Water Used (units)</th>
+                <th>Distance Traveled (cm)</th>
+                <th>Potholes Fixed</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for record in records %}
+            <tr>
+                <td>{{ record.timestamp }}</td>
+                <td>{{ record.latitude }}</td>
+                <td>{{ record.longitude }}</td>
+                <td>{{ "%.2f"|format(record.pothole_volume_cm3) }}</td>  <td>{{ "%.2f"|format(record.cement_units_used) }}</td>      <td>{{ "%.2f"|format(record.water_units_used) }}</td>        <td>{{ "%.2f"|format(record.cumulative_distance_m * 100) }}</td> <td>{{ record.cumulative_potholes_fixed }}</td>    </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <p>No repair data available yet.</p>
+    {% endif %}
+
+    <div id="gpsLog">
+        <h2>GPS Location Log</h2>
+        {% if records %}
+            {% for record in records %}
+                <p><strong>{{ record.timestamp }}:</strong> Latitude: {{ record.latitude }}, Longitude: {{ record.longitude }}</p>
+            {% endfor %}
+        {% else %}
+            <p>No GPS data available yet.</p>
+        {% endif %}
+    </div>
+
+    <script>
+        const volumes = {{ volumes|tojson }};
+        const timestamps = {{ timestamps|tojson }};
+        const cementUsed = {{ cement_used|tojson }};
+        const waterUsed = {{ water_used|tojson }};
+
+        const volumeChartCtx = document.getElementById('volumeChart').getContext('2d');
+        const volumeChart = new Chart(volumeChartCtx, {
+            type: 'line',
+            data: {
+                labels: timestamps,
+                datasets: [{
+                    label: 'Pothole Volume (cm³)',
+                    data: volumes,
+                    borderColor: 'rgba(75, 192, 192, 1)',
+                    backgroundColor: 'rgba(75, 192, 192, 0.2)',
+                    borderWidth: 2,
+                    pointRadius: 3,
+                    pointBackgroundColor: 'rgba(75, 192, 192, 1)',
+                    pointBorderColor: '#fff',
+                    pointHoverRadius: 5,
+                    pointHoverBackgroundColor: 'rgba(75, 192, 192, 1)',
+                    fill: true,
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: true,
+                scales: {
+                    x: {
+                        display: true,
+                        title: {
+                            display: true,
+                            text: 'Timestamp',
+                            color: '#555',
+                            font: {
+                                family: 'Arial',
+                                size: 14,
+                                weight: 'bold'
+                            }
+                        },
+                        ticks: {
+                            color: '#666',
+                            font: {
+                                size: 12
+                            }
+                        },
+                        grid: {
+                            color: 'rgba(0, 0, 0, 0.05)'
+                        }
+                    },
+                    y: {
+                        display: true,
+                        title: {
+                            display: true,
+                            text: 'Volume (cm³)',
+                            color: '#555',
+                            font: {
+                                family: 'Arial',
+                                size: 14,
+                                weight: 'bold'
+                            }
+                        },
+                        beginAtZero: true,
+                        ticks: {
+                            color: '#666',
+                            font: {
+                                size: 12
+                            }
+                        },
+                        grid: {
+                            color: 'rgba(0, 0, 0, 0.05)'
+                        }
+                    }
+                },
+                plugins: {
+                    legend: {
+                        display: true,
+                        position: 'top',
+                        labels: {
+                            color: '#333',
+                            font: {
+                                size: 12
+                            }
+                        }
+                    },
+                    tooltip: {
+                        backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                        titleColor: '#fff',
+                        bodyColor: '#fff',
+                        borderColor: 'rgba(0, 0, 0, 0.2)',
+                        borderWidth: 1,
+                        cornerRadius: 4,
+                        displayColors: true,
+                        callbacks: {
+                            labelColor: function(context) {
+                                return {
+                                    borderColor: 'rgba(75, 192, 192, 1)',
+                                    backgroundColor: 'rgba(75, 192, 192, 1)',
+                                };
+                            },
+                            label: function(context) {
+                                let label = context.dataset.label || '';
+                                if (label) {
+                                    label += ': ';
+                                }
+                                if (context.parsed.y !== null) {
+                                    label += new Intl.NumberFormat('en-US', { style: 'decimal' }).format(context.parsed.y);
+                                }
+                                return label;
+                            }
+                        }
+                    }
+                }
+            }
+        });
+
+        const materialsChartCtx = document.getElementById('materialsChart').getContext('2d');
+        const materialsChart = new Chart(materialsChartCtx, {
+            type: 'pie',
+            data: {
+                labels: ['Cement', 'Water'],
+                datasets: [{
+                    label: 'Materials Used',
+                    data: [cementUsed, waterUsed],
+                    backgroundColor: [
+                        'rgba(255, 99, 132, 0.8)',
+                        'rgba(54, 162, 235, 0.8)'
+                    ],
+                    hoverBackgroundColor: [
+                        'rgba(255, 99, 132, 1)',
+                        'rgba(54, 162, 235, 1)'
+                    ],
+                    borderWidth: 1,
+                    borderColor: 'rgba(255, 255, 255, 1)',
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: true,
+                plugins: {
+                    legend: {
+                        position: 'top',
+                        labels: {
+                            color: '#333',
+                            font: {
+                                size: 12
+                            }
+                        }
+                    },
+                    tooltip: {
+                        backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                        titleColor: '#fff',
+                        bodyColor: '#fff',
+                        borderColor: 'rgba(0, 0, 0, 0.2)',
+                        borderWidth: 1,
+                        cornerRadius: 4,
+                        displayColors: true,
+                        callbacks: {
+                            label: function(context) {
+                                let label = context.label || '';
+                                if (label) {
+                                    label += ': ';
+                                }
+                                if (context.parsed !== null) {
+                                    const dataset = context.dataset;
+                                    const total = dataset.data.reduce((previousValue, currentValue) => previousValue + currentValue);
+                                    const currentValue = dataset.data[context.dataIndex];
+                                    const percentage = ((currentValue / total) * 100).toFixed(2);
+                                    label += new Intl.NumberFormat('en-US', { style: 'decimal' }).format(currentValue) + ' (' + percentage + '%)';
+                                }
+                                return label;
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    </script>
+</body>
+</html>
